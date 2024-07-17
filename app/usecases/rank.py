@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import datetime
 
-from app.common.errors import ServiceError
 from app.common.context import Context
-from app.models.rank import RankPeak
+from app.common.errors import ServiceError
 from app.models.rank import RankCapture
 from app.models.rank import RankHistory
+from app.models.rank import RankPeak
 from app.repositories.rank import RanksRepo
 
 mode_map = {
