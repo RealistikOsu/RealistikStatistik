@@ -23,13 +23,13 @@ if [[ $APP_COMPONENT == "api" ]]; then
   exec python3.10 main.py
 elif [[ $APP_COMPONENT == "online_cron" ]]; then
   echo "Starting online history cron"
-  exec python3.10 app.workers.daemons.online_history_crawler
+  exec python3.10 -m app.workers.daemons.online_history_crawler
 elif [[ $APP_COMPONENT == "profile_graphs_cron" ]]; then
   echo "Starting profile graph cron"
-  exec python3.10 app.workers.daemons.profile_graphs_crawler
+  exec python3.10 -m app.workers.daemons.profile_graphs_crawler
 elif [[ $APP_COMPONENT == "top_scores_cron" ]]; then
   echo "Starting top scores cache cron"
-  exec python3.10 app.workers.daemons.top_scores_crawler
+  exec python3.10 -m app.workers.daemons.top_scores_crawler
 else
   echo "Unknown APP_COMPONENT: $APP_COMPONENT"
   exit 1
