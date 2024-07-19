@@ -42,11 +42,14 @@ async def async_main() -> int:
     )
     await redis.initialize()
 
-    start = timer()
-    await update_online_history()
-    end = timer()
+    while True:
+        start = timer()
+        await update_online_history()
+        end = timer()
 
-    logger.info(f"[online_history_crawler:cron] Time taken: {end - start:.2f}s")
+        logger.info(f"[online_history_crawler:cron] Time taken: {end - start:.2f}s")
+
+        await asyncio.sleep(5 * 60)
 
     await redis.close()
     return 0

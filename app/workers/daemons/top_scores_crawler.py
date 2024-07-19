@@ -92,11 +92,14 @@ async def async_main() -> int:
     )
     await db.connect()
 
-    start = timer()
-    await gather_profile_history()
-    end = timer()
+    while True:
+        start = timer()
+        await gather_profile_history()
+        end = timer()
 
-    logger.info(f"[top_scores_crawler:cron] Time taken: {end - start:.2f}s")
+        logger.info(f"[top_scores_crawler:cron] Time taken: {end - start:.2f}s")
+        await asyncio.sleep(5 * 60)
+
     await db.disconnect()
     await redis.close()
     return 0

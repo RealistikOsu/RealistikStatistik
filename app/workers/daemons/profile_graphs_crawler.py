@@ -162,16 +162,18 @@ async def async_main() -> int:
     )
     await db.connect()
 
-    start = timer()
-    users = await db.fetch_all(
-        "SELECT id, privileges, country, latest_activity FROM users",
-    )
-    for user in users:
-        await gather_profile_history(user)
+    while True:
+        start = timer()
+        users = await db.fetch_all(
+            "SELECT id, privileges, country, latest_activity FROM users",
+        )
+        for user in users:
+            await gather_profile_history(user)
 
-    end = timer()
+        end = timer()
+        logger.info(f"[profile_graphs_crawler:cron] Time taken: {end - start:.2f}s")
 
-    logger.info(f"[profile_graphs_crawler:cron] Time taken: {end - start:.2f}s")
+        await asyncio.sleep(24 * 60 * 60)
 
     await db.disconnect()
     await redis.close()
