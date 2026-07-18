@@ -150,7 +150,7 @@ async def async_main() -> int:
 
     start = timer()
     users = await db.fetch_all(
-        "SELECT id, privileges, country, latest_activity FROM users",
+        "SELECT id, privileges, public, country, COALESCE(UNIX_TIMESTAMP(latest_activity),0) AS latest_activity FROM users",
     )
     for user in users:
         await gather_profile_history(user)

@@ -9,7 +9,7 @@ from app.common.context import Context
 class UsersRepo:
 
     READ_PARAMS = """\
-        `privileges`, `public`, `country`, UNIX_TIMESTAMP(`latest_activity`) AS `latest_activity`
+        `privileges`, `public`, `country`, COALESCE(UNIX_TIMESTAMP(`latest_activity`),0) AS `latest_activity`
     """
 
     def __init__(self, ctx: Context) -> None:
