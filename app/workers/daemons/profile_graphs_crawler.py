@@ -27,16 +27,7 @@ redis_map = {
     7: ("leaderboard_ap", "std"),
 }
 
-db_map = {
-    0: ("users_stats", "std"),
-    1: ("users_stats", "taiko"),
-    2: ("users_stats", "ctb"),
-    3: ("users_stats", "mania"),
-    4: ("rx_stats", "std"),
-    5: ("rx_stats", "taiko"),
-    6: ("rx_stats", "ctb"),
-    7: ("ap_stats", "std"),
-}
+# pp now comes from the single tall `user_stats` table keyed by combined mode 0-7.
 
 
 async def fetch_rank(
@@ -79,14 +70,9 @@ async def fetch_pp(
     user_id: int,
     mode: int,
 ) -> int:
-    (db_table, mode_name) = db_map[mode]
-
-    params = {
-        "user_id": user_id,
-    }
     current_pp = await db.fetch_val(
-        f"SELECT pp_{mode_name} AS pp FROM {db_table} WHERE id = :user_id",
-        params,
+        "SELECT pp FROM user_stats WHERE user_id = :user_id AND mode = :mode",
+        {"user_id": user_id, "mode": mode},
     )
 
     if current_pp is None:
@@ -97,14 +83,14 @@ async def fetch_pp(
 
 async def gather_profile_history(user: Mapping[str, Any]) -> None:
     user_id = user["id"]
-    privileges = user["privileges"]
+    public = user["public"]
 
     start_time = int(time.time())
 
     for mode in range(8):
         inactive_days = (start_time - user["latest_activity"]) / 60 / 60 / 24
 
-        if inactive_days > 60 or not privileges & 1:
+        if inactive_days > 60 or not public:
             ranks = await db.fetch_one(
                 "SELECT `rank`, `country_rank` FROM `user_profile_history` WHERE `user_id` = :user_id AND `mode` = :mode ORDER BY `captured_at` DESC LIMIT 1",
                 {"user_id": user_id, "mode": mode},

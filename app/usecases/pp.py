@@ -7,16 +7,7 @@ from app.models.pp import PPCapture
 from app.models.pp import PPHistory
 from app.repositories.pp import PPRepo
 
-mode_map = {
-    0: ("users_stats", "std"),
-    1: ("users_stats", "taiko"),
-    2: ("users_stats", "ctb"),
-    3: ("users_stats", "mania"),
-    4: ("rx_stats", "std"),
-    5: ("rx_stats", "taiko"),
-    6: ("rx_stats", "ctb"),
-    7: ("ap_stats", "std"),
-}
+# pp now comes from the single tall `user_stats` table keyed by combined mode 0-7.
 
 
 async def fetch_many(
@@ -40,14 +31,9 @@ async def fetch_current(
     user_id: int,
     mode: int,
 ) -> PPCapture | None:
-    (db_table, mode_name) = mode_map[mode]
-
-    params = {
-        "user_id": user_id,
-    }
     current_pp = await ctx.db.fetch_val(
-        f"SELECT pp_{mode_name} AS pp FROM {db_table} WHERE id = :user_id",
-        params,
+        "SELECT pp FROM user_stats WHERE user_id = :user_id AND mode = :mode",
+        {"user_id": user_id, "mode": mode},
     )
 
     if not current_pp:

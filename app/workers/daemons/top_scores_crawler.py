@@ -24,16 +24,8 @@ redis_map = {
     7: ("ap", "std"),
 }
 
-db_map = {
-    0: ("scores", 0),
-    1: ("scores", 1),
-    2: ("scores", 2),
-    3: ("scores", 3),
-    4: ("scores_relax", 0),
-    5: ("scores_relax", 1),
-    6: ("scores_relax", 2),
-    7: ("scores_ap", 0),
-}
+# Clean schema: single `scores` table keyed by combined mode 0-7; the row keys
+# below are preserved via `AS` aliases so the cached redis payload is unchanged.
 
 REDIS_KEY_TEMPLATE = "statistik:cache:top:{}:{}"
 
@@ -41,21 +33,22 @@ REDIS_KEY_TEMPLATE = "statistik:cache:top:{}:{}"
 async def gather_profile_history() -> None:
 
     for mode in range(8):
-        (db_table, mode_val) = db_map[mode]
         (c_mode_name, mode_name) = redis_map[mode]
 
         score_data = await db.fetch_one(
-            f"""
-                SELECT CONVERT(`s`.`pp`, SIGNED) AS `pp_val`, `u`.`username`, `u`.`id` AS `user_id`, `s`.`time`, `b`.`beatmap_id`, `b`.`beatmapset_id`
-                FROM `{db_table}` `s` INNER JOIN `users` `u` INNER JOIN `beatmaps` `b`
-                ON `s`.`userid` = `u`.`id` AND `s`.`beatmap_md5` = `b`.`beatmap_md5`
-                WHERE `s`.`play_mode` = :mode_val
-                AND `s`.`completed` = 3 AND `u`.`privileges` & 1
-                AND `b`.`ranked` IN (2,3)
+            """
+                SELECT CONVERT(`s`.`pp`, SIGNED) AS `pp_val`, `u`.`username`,
+                       `u`.`id` AS `user_id`, UNIX_TIMESTAMP(`s`.`submitted_at`) AS `time`,
+                       `b`.`id` AS `beatmap_id`, `b`.`set_id` AS `beatmapset_id`
+                FROM `scores` `s`
+                INNER JOIN `users` `u` ON `s`.`user_id` = `u`.`id`
+                INNER JOIN `beatmaps` `b` ON `s`.`beatmap_md5` = `b`.`md5`
+                WHERE `s`.`mode` = :mode AND `s`.`status` = 3
+                AND `u`.`public` = 1 AND `b`.`status` IN (2, 3)
                 ORDER BY `s`.`pp` DESC LIMIT 1
             """,
             {
-                "mode_val": mode_val,
+                "mode": mode,
             },
         )
 

@@ -31,7 +31,7 @@ async def get_profile_pp_history(
             status_code=200,
         )
 
-    if validation.is_restricted(user_data.privileges):
+    if validation.is_restricted(user_data.public):
         return responses.failure(
             ServiceError.USERS_IS_RESTRICTED,
             "User is restricted.",

@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 class UserInfo(BaseModel):
     privileges: int
+    public: int
     country: str
     latest_activity: int
 
@@ -15,6 +16,7 @@ class UserInfo(BaseModel):
     def from_mapping(cls, mapping: Mapping[str, Any]) -> UserInfo:
         return cls(
             privileges=mapping["privileges"],
+            public=mapping["public"],
             country=mapping["country"],
             latest_activity=mapping["latest_activity"],
         )

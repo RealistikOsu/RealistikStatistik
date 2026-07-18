@@ -3,8 +3,10 @@ from __future__ import annotations
 import time
 
 
-def is_restricted(privileges: int) -> bool:
-    return privileges & 1 == 0
+def is_restricted(public: int) -> bool:
+    # Bans/restrictions live in the `users.public` cache in the clean schema
+    # (privileges bit 1 is now ACTIVATED, not the old UserPublic).
+    return not public
 
 
 def is_not_active(last_active: int) -> bool:
