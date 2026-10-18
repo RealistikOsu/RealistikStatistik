@@ -1,14 +1,23 @@
-FROM python:3.10
+FROM python:3.10-slim AS builder
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends git && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --prefix=/install -r requirements.txt
+
+
+FROM python:3.10-slim
 
 ENV PYTHONUNBUFFERED=1
 
-COPY requirements.txt .
-RUN python3.10 -m pip install -r requirements.txt
+COPY --from=builder /install /usr/local
 
-COPY scripts /scripts
+COPY --chmod=755 scripts /scripts
 
 COPY . /srv/root
 WORKDIR /srv/root
 
-RUN chmod +x -R /scripts
 ENTRYPOINT ["/scripts/bootstrap.sh"]
