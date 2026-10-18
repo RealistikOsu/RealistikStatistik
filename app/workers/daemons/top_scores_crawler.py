@@ -46,7 +46,7 @@ async def gather_profile_history() -> None:
 
         score_data = await db.fetch_one(
             f"""
-                SELECT CONVERT(`s`.`pp`, SIGNED) AS `pp_val`, `u`.`username`, `u`.`id` AS `user_id`, `s`.`time`, `b`.`beatmap_id`, `b`.`beatmapset_id`
+                SELECT /*+ JOIN_ORDER(`s`, `b`, `u`) INDEX(`s` `{db_table}_mode_top`) */ CONVERT(`s`.`pp`, SIGNED) AS `pp_val`, `u`.`username`, `u`.`id` AS `user_id`, `s`.`time`, `b`.`beatmap_id`, `b`.`beatmapset_id`
                 FROM `{db_table}` `s` INNER JOIN `users` `u` INNER JOIN `beatmaps` `b`
                 ON `s`.`userid` = `u`.`id` AND `s`.`beatmap_md5` = `b`.`beatmap_md5`
                 WHERE `s`.`play_mode` = :mode_val
