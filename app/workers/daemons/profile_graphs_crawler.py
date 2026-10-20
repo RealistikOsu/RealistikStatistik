@@ -165,28 +165,47 @@ async def gather_profile_history(user: Mapping[str, Any]) -> None:
             await record_peak(user_id, mode, user_rank, captured_at)
 
 
+async def collapse_unchanged(user_id: int) -> None:
+    # An unchanged row adds nothing: the value on any date is the latest row at or before it.
+    await db.execute(
+        """\
+        DELETE h FROM `user_profile_history` h
+        JOIN (
+            SELECT `mode`, `captured_at` FROM (
+                SELECT `mode`, `captured_at`, `rank`, `pp`, `country_rank`,
+                       LAG(`rank`) OVER w AS prev_rank,
+                       LAG(`pp`) OVER w AS prev_pp,
+                       LAG(`country_rank`) OVER w AS prev_country_rank
+                FROM `user_profile_history`
+                WHERE `user_id` = :user_id
+                WINDOW w AS (PARTITION BY `mode` ORDER BY `captured_at`)
+            ) t
+            WHERE `rank` <=> prev_rank AND `pp` <=> prev_pp AND `country_rank` <=> prev_country_rank
+        ) d ON h.`user_id` = :user_id AND h.`mode` = d.`mode` AND h.`captured_at` = d.`captured_at`
+        """,
+        {"user_id": user_id},
+    )
+
+
 async def prune_history(users: list[Mapping[str, Any]]) -> None:
     if not users:
         return
 
     now = int(time.time())
-    cutoff = datetime.datetime.now() - datetime.timedelta(
-        days=settings.PROFILE_HISTORY_RETENTION_DAYS,
-    )
+    days = settings.PROFILE_HISTORY_RETENTION_DAYS
+    cutoff = datetime.datetime.now() - datetime.timedelta(days=days)
     by_id = {user["id"]: user for user in users}
     rows = await db.fetch_all("SELECT DISTINCT `user_id` FROM `user_profile_history`")
     for row in rows:
-        user = by_id.get(row["user_id"])
+        user_id = row["user_id"]
+        user = by_id.get(user_id)
         if user is None or is_inactive(user, now):
+            await collapse_unchanged(user_id)
+        elif days > 0:
             await db.execute(
-                "DELETE FROM `user_profile_history` WHERE `user_id` = :user_id",
-                {"user_id": row["user_id"]},
+                "DELETE FROM `user_profile_history` WHERE `user_id` = :user_id AND `captured_at` < :cutoff",
+                {"user_id": user_id, "cutoff": cutoff},
             )
-            continue
-        await db.execute(
-            "DELETE FROM `user_profile_history` WHERE `user_id` = :user_id AND `captured_at` < :cutoff",
-            {"user_id": row["user_id"], "cutoff": cutoff},
-        )
 
 
 async def async_main() -> int:

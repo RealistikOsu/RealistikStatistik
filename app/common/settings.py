@@ -25,7 +25,8 @@ WRITE_DB_NAME = os.environ["WRITE_DB_NAME"]
 REDIS_HOST = os.environ["REDIS_HOST"]
 REDIS_PORT = int(os.environ["REDIS_PORT"])
 
-PROFILE_HISTORY_RETENTION_DAYS = int(os.environ.get("PROFILE_HISTORY_RETENTION_DAYS", "90"))
+# 0 keeps every daily point; N deletes the points of active players older than N days.
+PROFILE_HISTORY_RETENTION_DAYS = int(os.environ.get("PROFILE_HISTORY_RETENTION_DAYS", "0"))
 
 APP_ENV = os.environ["APP_ENV"]
 APP_COMPONENT = os.environ["APP_COMPONENT"]
