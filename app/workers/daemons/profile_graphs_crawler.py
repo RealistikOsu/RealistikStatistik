@@ -140,6 +140,15 @@ async def gather_profile_history(user: Mapping[str, Any]) -> None:
         if not user_rank and not pp_val:
             continue
 
+        # A restart or deploy runs the crawler again; keep one point per day, the latest.
+        await db.execute(
+            "DELETE FROM `user_profile_history` WHERE `user_id` = :user_id AND `mode` = :mode AND `captured_at` >= :day_start",
+            {
+                "user_id": user_id,
+                "mode": mode,
+                "day_start": captured_at.replace(hour=0, minute=0, second=0, microsecond=0),
+            },
+        )
         await db.execute(
             "INSERT INTO `user_profile_history` (`user_id`, `mode`, `pp`, `rank`, `country_rank`, `captured_at`) VALUES (:user_id, :mode, :pp, :rank, :c_rank, :captured_at)",
             {
