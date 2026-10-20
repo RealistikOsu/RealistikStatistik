@@ -95,27 +95,44 @@ async def fetch_pp(
     return current_pp
 
 
+async def record_peak(
+    user_id: int,
+    mode: int,
+    rank: int,
+    captured_at: datetime.datetime,
+) -> None:
+    await db.execute(
+        """\
+        INSERT INTO `user_profile_peaks` (`user_id`, `mode`, `rank`, `achieved_at`)
+        VALUES (:user_id, :mode, :rank, :captured_at) AS new
+        ON DUPLICATE KEY UPDATE
+            `achieved_at` = IF(new.`rank` < `user_profile_peaks`.`rank`, new.`achieved_at`, `user_profile_peaks`.`achieved_at`),
+            `rank` = LEAST(`user_profile_peaks`.`rank`, new.`rank`)
+        """,
+        {
+            "user_id": user_id,
+            "mode": mode,
+            "rank": rank,
+            "captured_at": captured_at,
+        },
+    )
+
+
+def is_inactive(user: Mapping[str, Any], now: int) -> bool:
+    return (now - user["latest_activity"]) / 60 / 60 / 24 > 60
+
+
 async def gather_profile_history(user: Mapping[str, Any]) -> None:
     user_id = user["id"]
     privileges = user["privileges"]
 
-    start_time = int(time.time())
+    # The profile endpoints refuse these users, so a copy of their last row is never read.
+    if is_inactive(user, int(time.time())) or not privileges & 1:
+        return
 
     for mode in range(8):
-        inactive_days = (start_time - user["latest_activity"]) / 60 / 60 / 24
-
-        if inactive_days > 60 or not privileges & 1:
-            ranks = await db.fetch_one(
-                "SELECT `rank`, `country_rank` FROM `user_profile_history` WHERE `user_id` = :user_id AND `mode` = :mode ORDER BY `captured_at` DESC LIMIT 1",
-                {"user_id": user_id, "mode": mode},
-            )
-            if not ranks:
-                continue
-            user_rank = ranks["rank"]
-            country_rank = ranks["country_rank"]
-        else:
-            user_rank = await fetch_rank(user_id, mode)
-            country_rank = await fetch_c_rank(user_id, mode, user["country"])
+        user_rank = await fetch_rank(user_id, mode)
+        country_rank = await fetch_c_rank(user_id, mode, user["country"])
 
         pp_val = await fetch_pp(user_id, mode)
         captured_at = datetime.datetime.now()
@@ -133,6 +150,33 @@ async def gather_profile_history(user: Mapping[str, Any]) -> None:
                 "c_rank": country_rank,
                 "captured_at": captured_at,
             },
+        )
+
+        if user_rank:
+            await record_peak(user_id, mode, user_rank, captured_at)
+
+
+async def prune_history(users: list[Mapping[str, Any]]) -> None:
+    if not users:
+        return
+
+    now = int(time.time())
+    cutoff = datetime.datetime.now() - datetime.timedelta(
+        days=settings.PROFILE_HISTORY_RETENTION_DAYS,
+    )
+    by_id = {user["id"]: user for user in users}
+    rows = await db.fetch_all("SELECT DISTINCT `user_id` FROM `user_profile_history`")
+    for row in rows:
+        user = by_id.get(row["user_id"])
+        if user is None or is_inactive(user, now):
+            await db.execute(
+                "DELETE FROM `user_profile_history` WHERE `user_id` = :user_id",
+                {"user_id": row["user_id"]},
+            )
+            continue
+        await db.execute(
+            "DELETE FROM `user_profile_history` WHERE `user_id` = :user_id AND `captured_at` < :cutoff",
+            {"user_id": row["user_id"], "cutoff": cutoff},
         )
 
 
@@ -168,6 +212,8 @@ async def async_main() -> int:
     )
     for user in users:
         await gather_profile_history(user)
+
+    await prune_history(users)
 
     end = timer()
 

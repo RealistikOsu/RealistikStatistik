@@ -13,7 +13,7 @@ class RanksRepo:
     """
 
     READ_PEAK_PARAMS = """\
-        `user_id`, `mode`, `captured_at`, `rank`
+        `user_id`, `mode`, `achieved_at` AS `captured_at`, `rank`
     """
 
     def __init__(self, ctx: Context) -> None:
@@ -26,9 +26,8 @@ class RanksRepo:
     ) -> Mapping[str, Any] | None:
 
         query = f"""\
-            SELECT {self.READ_PEAK_PARAMS} FROM `user_profile_history`
-                WHERE `user_id` = :user_id AND `mode` = :mode AND `rank` > 0
-                ORDER BY `rank`, `captured_at` ASC LIMIT 1
+            SELECT {self.READ_PEAK_PARAMS} FROM `user_profile_peaks`
+                WHERE `user_id` = :user_id AND `mode` = :mode
         """
         params = {
             "user_id": user_id,
