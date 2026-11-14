@@ -7,6 +7,7 @@ from fastapi import Request
 from shared_modules import logger
 
 from app.common import settings
+from app.common import statsd
 from app.services import database
 from app.services import redis
 
@@ -82,6 +83,16 @@ def init_middlewares(api: FastAPI) -> None:
         response = await call_next(request)
         process_time = (time.perf_counter_ns() - start_time) / 1e6
         response.headers["X-Process-Time"] = str(process_time)  # ms
+
+        route = request.scope.get("route")
+        statsd.timing(
+            "statistics.request.time",
+            process_time,
+            [
+                f"route:{route.path if route else 'unmatched'}",
+                f"status:{response.status_code // 100}xx",
+            ],
+        )
         return response
 
 

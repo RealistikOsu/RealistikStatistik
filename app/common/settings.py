@@ -32,3 +32,7 @@ APP_ENV = os.environ["APP_ENV"]
 APP_COMPONENT = os.environ["APP_COMPONENT"]
 APP_HOST = os.environ["APP_HOST"]
 APP_PORT = int(os.environ["APP_PORT"])
+
+# DogStatsD agent. Empty host turns metrics off.
+STATSD_HOST = os.environ.get("STATSD_HOST", "")
+STATSD_PORT = int(os.environ.get("STATSD_PORT", 8125))
